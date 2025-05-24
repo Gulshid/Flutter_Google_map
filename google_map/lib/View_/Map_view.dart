@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class MapView extends StatefulWidget {
@@ -31,6 +32,30 @@ class _MapViewState extends State<MapView> {
   //   });
   // }
 
+  Future<Position> CurrentLocation() async {
+    bool serviceEnable;
+    LocationPermission permission;
+    serviceEnable = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnable) {
+      return Future.error('Location services are disabled');
+    }
+    // check if the service location is enabled or not
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return Future.error('Location permission denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Location permission permanently denied');
+    }
+
+    Position position = await Geolocator.getCurrentPosition();
+    return position;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,7 +69,6 @@ class _MapViewState extends State<MapView> {
         onMapCreated: (GoogleMapController controller) {
           googleMapController = controller;
         },
-      
 
         // markers: {
         //   Marker(
@@ -62,9 +86,31 @@ class _MapViewState extends State<MapView> {
       ),
 
       floatingActionButton: FloatingActionButton(
-      backgroundColor: Colors.white,
-        onPressed: (){},
-        child: Icon(Icons.my_location, size: 30.sp,),),
+        backgroundColor: Colors.white,
+        onPressed: () async {
+          Position position = await CurrentLocation();
+          googleMapController.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: LatLng(position.latitude, position.longitude),
+                zoom: 14,
+              ),
+            ),
+          );
+
+          marker.clear();
+          marker.add(
+            Marker(
+              markerId: MarkerId('This is my current location'),
+              position: LatLng(position.latitude, position.longitude),
+            ),
+          );
+          setState(() {
+            
+          });
+        },
+        child: Icon(Icons.my_location, size: 30.sp),
+      ),
     );
   }
 }
